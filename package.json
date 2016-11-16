@@ -1,0 +1,18 @@
+{
+  "name": "smtp-catchall",
+  "version": "1.0.0",
+  "description": "SMTP server that catches everything and stores SMTP log to disk",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "SMTP"
+  ],
+  "author": "Andris Reinman",
+  "license": "MIT",
+  "dependencies": {
+    "config": "^1.24.0",
+    "smtp-server": "^1.16.1"
+  }
+}
