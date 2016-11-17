@@ -1,0 +1,12 @@
+Description=Mailtrain server
+
+[Service]
+Environment="NODE_ENV=production"
+WorkingDirectory=/opt/smtp-catchall
+ExecStart=/usr/bin/node index.js
+Type=simple
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

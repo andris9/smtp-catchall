@@ -1,7 +1,7 @@
-/* eslint no-console:0 */
-
 'use strict';
 
+const log = require('npmlog');
+const fs = require('fs');
 const config = require('config');
 const {
     SMTPServer
@@ -10,11 +10,27 @@ const StreamHash = require('./lib/stream-hash');
 
 let messagecounter = 0;
 
+log.level = 'silly';
+
+if (config.logfile && typeof config.logfile === 'string') {
+    const logstream = fs.createWriteStream(config.logfile);
+    logstream.on('error', err => {
+        console.error('Output error: %s', err.message); // eslint-disable-line no-console
+        process.exit(1);
+    });
+
+    log.stream = logstream;
+}
+
 // Setup server
 const server = new SMTPServer({
 
     // log to console
-    logger: true,
+    logger: {
+        info: logfunc('info'),
+        debug: logfunc('verbose'),
+        error: logfunc('error')
+    },
 
     // not required but nice-to-have
     banner: config.greeting,
@@ -34,7 +50,15 @@ const server = new SMTPServer({
             hash = data.hash;
         });
 
-        stream.pipe(streamHash).pipe(process.stdout);
+        stream.pipe(streamHash);
+
+        streamHash.on('readable', () => {
+            let chunk;
+            while ((chunk = streamHash.read()) !== null) {
+                log.verbose('MAIL[' + session.id + '] C:', chunk.toString().trim());
+            }
+        });
+
         streamHash.on('end', () => {
             let err;
             if (stream.sizeExceeded) {
@@ -48,7 +72,7 @@ const server = new SMTPServer({
 });
 
 server.on('error', err => {
-    console.log(err);
+    log.error('SERVER', err.stack);
     server.close();
 });
 
@@ -71,7 +95,7 @@ function start(callback) {
         }
         let host = hosts[pos++];
         server.listen(config.port, host, () => {
-            console.log('Server listening on %s:%s', host || '*', config.port);
+            log.info('Server', 'Listening on %s:%s', host || '*', config.port);
             setImmediate(startNextHost);
         });
     };
@@ -79,13 +103,36 @@ function start(callback) {
     startNextHost();
 }
 
+function logfunc(level) {
+    return function () {
+        let args = [...arguments];
+        let str = args.shift();
+        let id = '';
+        str = str.replace(/^\[[^\]]+\]\s*/, m => {
+            id = m.trim();
+            if (id === '[%s]') {
+                id = '[' + args.shift() + ']';
+            }
+            return '';
+        }).replace(/^[SC]:\s*/, prefix => {
+            prefix = prefix.trim();
+            id += ' ' + prefix;
+            return '';
+        }).trim();
+        if (!str) {
+            str = args.shift();
+        }
+        log[level]('SMTP' + id.trim(), str, ...args);
+    };
+}
+
 start(() => {
     if (config.group) {
         try {
             process.setgid(config.group);
-            console.log('Changed group to "%s" (%s)', config.group, process.getgid());
+            log.info('Process', 'Changed group to "%s" (%s)', config.group, process.getgid());
         } catch (E) {
-            console.log('Failed to change group to "%s" (%s)', config.group, E.message);
+            log.error('Process', 'Failed to change group to "%s" (%s)', config.group, E.message);
             return process.exit(1);
         }
     }
@@ -93,12 +140,12 @@ start(() => {
     if (config.user) {
         try {
             process.setuid(config.user);
-            console.log('Changed user to "%s" (%s)', config.user, process.getuid());
+            log.info('Process', 'Changed user to "%s" (%s)', config.user, process.getuid());
         } catch (E) {
-            console.log('Failed to change user to "%s" (%s)', config.user, E.message);
+            log.error('Process', 'Failed to change user to "%s" (%s)', config.user, E.message);
             return process.exit(1);
         }
     }
 
-    console.log('Server started %s', Date.now());
+    log.info('Server', 'Server started %s', Date.now());
 });

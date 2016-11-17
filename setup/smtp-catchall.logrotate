@@ -1,0 +1,10 @@
+/var/log/smtp-catchall.log {
+    daily
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    nomail
+}

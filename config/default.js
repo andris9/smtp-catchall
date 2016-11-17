@@ -4,6 +4,8 @@ module.exports = {
     // user: 'nobody',
     // group:'nogroup',
 
+    logfile: false,
+
     greeting: 'Everything gets dumped and logged',
     port: 2525,
     host: '*',
